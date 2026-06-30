@@ -106,6 +106,7 @@
     .swipe-hint { display: flex; justify-content: center; gap: 6px; margin: 8px 0 16px; }
     .swipe-hint span { width: 6px; height: 6px; border-radius: 50%; background: var(--border-strong); }
     .swipe-hint span.active { background: var(--navy); }
+    tr.filler-row { display: none; }
   }
   .swipe-hint { display: none; }
 </style>
@@ -267,22 +268,24 @@ function rowHTML(row, showDate){
   </tr>`;
 }
 
-function groupedBodyHTML(list){
-  let html = '';
-  let i = 0;
-  while (i < list.length) {
-    const date = list[i].date;
-    let group = '';
-    let first = true;
-    while (i < list.length && list[i].date === date) {
-      const row = list[i];
-      group += rowHTML(row, row.id === editingId ? true : first);
-      first = false;
-      i++;
+function groupByDate(list){
+  const map = {};
+  list.forEach(r => { (map[r.date] = map[r.date] || []).push(r); });
+  return map;
+}
+
+function buildDateGroup(date, list, rowsCount){
+  let group = '';
+  for (let idx = 0; idx < rowsCount; idx++) {
+    if (idx < list.length) {
+      const row = list[idx];
+      group += rowHTML(row, idx === 0 || row.id === editingId);
+    } else {
+      const showDate = idx === 0 && list.length === 0;
+      group += `<tr class="row filler-row"><td class="${showDate ? 'sticky-date' : 'blank-date'}">${showDate ? date : ''}</td><td></td><td></td><td></td></tr>`;
     }
-    html += `<tbody class="date-group">${group}</tbody>`;
   }
-  return html;
+  return `<tbody class="date-group">${group}</tbody>`;
 }
 
 function render(){
@@ -299,8 +302,21 @@ function render(){
   inRows.forEach(r => totalIn += Number(r.amount) || 0);
   outRows.forEach(r => totalOut += Number(r.amount) || 0);
 
-  inTable.insertAdjacentHTML('beforeend', groupedBodyHTML(inRows));
-  outTable.insertAdjacentHTML('beforeend', groupedBodyHTML(outRows));
+  const inGroups = groupByDate(inRows);
+  const outGroups = groupByDate(outRows);
+  const allDates = Array.from(new Set([...Object.keys(inGroups), ...Object.keys(outGroups)])).sort();
+
+  let inHTML = '', outHTML = '';
+  allDates.forEach(date => {
+    const inList = inGroups[date] || [];
+    const outList = outGroups[date] || [];
+    const rowsCount = Math.max(inList.length, outList.length, 1);
+    inHTML += buildDateGroup(date, inList, rowsCount);
+    outHTML += buildDateGroup(date, outList, rowsCount);
+  });
+
+  inTable.insertAdjacentHTML('beforeend', inHTML);
+  outTable.insertAdjacentHTML('beforeend', outHTML);
 
   document.getElementById('in-total').textContent = fmt(totalIn);
   document.getElementById('out-total').textContent = fmt(totalOut);
@@ -329,7 +345,7 @@ function render(){
   balEl.textContent = (bal < 0 ? '-' : '') + fmt(Math.abs(bal));
   balEl.style.color = bal < 0 ? '#ff8a80' : 'var(--highlight)';
 
-  document.querySelectorAll('tr.row').forEach(tr => {
+  document.querySelectorAll('tr.row:not(.filler-row)').forEach(tr => {
     tr.onclick = () => { editingId = tr.dataset.id; render(); };
   });
 
