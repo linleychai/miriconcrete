@@ -9,26 +9,26 @@
   :root {
     --navy: #0A457D;
     --highlight: #A7CDEE;
-    --border: #d8e6f3;
-    --border-strong: #A7CDEE;
-    --text-secondary: #4A6A8A;
-    --text-muted: #8AA8C4;
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --text: #111111;
+    --text-secondary: #555555;
+    --text-muted: #999999;
+    --border: #e0e0e0;
+    --border-strong: #cccccc;
+    --row-hover: #f4f4f4;
     --text-danger: #c0392b;
-    --text-success: #1e8449;
-    --bg: #fff;
-    --text: #0A457D;
-    --row-hover: #eef6fc;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
   [data-theme="dark"] {
-    --border: #1f3b54;
-    --border-strong: #2c557a;
-    --text-secondary: #9fc1de;
-    --text-muted: #6a8cab;
-    --bg: #0d2238;
-    --text: #eaf2fa;
-    --row-hover: #16314b;
-    --highlight: #A7CDEE;
+    --bg: #0c0c0c;
+    --surface: #0c0c0c;
+    --text: #f2f2f2;
+    --text-secondary: #aaaaaa;
+    --text-muted: #777777;
+    --border: #2a2a2a;
+    --border-strong: #3a3a3a;
+    --row-hover: #1a1a1a;
   }
   body { margin: 0; padding: 0; color: var(--text); background: var(--bg); }
   .page { max-width: 900px; margin: 0 auto; padding: 0 24px 24px; box-sizing: border-box; }
@@ -36,30 +36,30 @@
   .topbar h3 { margin: 0; color: #fff; }
   .topbar .subtitle { font-size: 13px; color: var(--highlight); }
   .topbar-actions { display: flex; align-items: center; gap: 8px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  col.col-date { width: 22%; }
+  col.col-party { width: 32%; }
+  col.col-bill { width: 22%; }
+  col.col-amount { width: 24%; }
   th { text-align: left; padding: 8px 4px; color: var(--text); font-weight: 600; border-bottom: 2px solid var(--navy); }
-  td { padding: 8px 4px; border-bottom: 1px solid var(--border); }
-  input, button { font-size: 13px; padding: 7px 9px; border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text); background: var(--bg); box-sizing: border-box; height: 36px; }
+  td { padding: 8px 4px; border-bottom: 1px solid var(--border); overflow: hidden; }
+  tfoot td { border-bottom: none; padding-top: 10px; }
+  input, button { font-size: 13px; padding: 7px 8px; border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text); background: var(--surface); box-sizing: border-box; height: 36px; width: 100%; }
   input:focus, button:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 2px var(--highlight); }
   button { cursor: pointer; }
-  button:hover { background: var(--highlight); color: #0A457D; }
-  button#in-add, button#out-add { background: var(--navy); color: #fff; border-color: var(--navy); font-weight: 600; width: 36px; padding: 0; flex-shrink: 0; }
+  button:hover { background: var(--row-hover); }
+  button#in-add, button#out-add { background: var(--navy); color: #fff; border-color: var(--navy); font-weight: 600; }
   button#in-add:hover, button#out-add:hover { background: #08365f; }
   .edit-actions .save-btn { background: var(--navy); color: #fff; border-color: var(--navy); }
   .edit-actions .save-btn:hover { background: #08365f; }
   h3 { margin: 0 0 8px; color: var(--text); }
-  .add-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
-  .add-row input { flex-shrink: 0; }
-  .add-row input[type="date"] { flex: 1; min-width: 0; }
-  .add-row input[placeholder="Customer"], .add-row input[placeholder="Supplier"] { flex: 1; min-width: 0; }
   .del-btn { border: none; background: none; cursor: pointer; color: var(--text-muted); padding: 0; }
   tr.row { cursor: pointer; }
   tr.row:active, tr.row:hover { background: var(--row-hover); }
   tr.editing { background: var(--row-hover); }
   tr.editing td { padding: 8px 4px; }
-  tr.editing input { width: 100%; }
   .edit-actions { display: flex; gap: 6px; margin-top: 6px; }
-  .edit-actions button { flex: 1; padding: 8px; height: auto; }
+  .edit-actions button { flex: 1; padding: 8px; height: auto; width: auto; }
   .edit-actions .delete-btn { color: var(--text-danger); border-color: var(--text-danger); }
   #login-screen { max-width: 320px; margin: 80px auto; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
   #login-screen input, #login-screen button { width: 100%; }
@@ -73,14 +73,19 @@
   #balance { font-weight: 700; font-size: 22px; color: var(--highlight); }
   #theme-toggle { width: 36px; height: 36px; padding: 0; background: transparent; color: #fff; border-color: rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; }
   #theme-toggle:hover { background: rgba(255,255,255,0.15); color: #fff; }
-  #logout-btn { background: transparent; color: #fff; border-color: rgba(255,255,255,0.5); }
+  #logout-btn { width: auto; background: transparent; color: #fff; border-color: rgba(255,255,255,0.5); }
   #logout-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+  .range-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .range-row input { width: auto; }
+  .range-row button { width: auto; }
+  .range-row label { font-size: 13px; color: var(--text-secondary); }
+  .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 </style>
 </head>
 <body>
 
 <div id="login-screen">
-  <h3 style="margin-bottom:0; color:#0A457D;">Miri Concrete</h3>
+  <h3 style="margin-bottom:0;">Miri Concrete</h3>
   <div style="font-size:14px; color:var(--text-secondary); margin-bottom:8px;">Daily Ledger</div>
   <input type="password" id="password-input" placeholder="Password" />
   <button id="login-btn">Unlock</button>
@@ -100,30 +105,38 @@
   </div>
 
   <div class="page">
-  <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
-    <label style="font-size:13px; color:var(--text-secondary);">From</label>
+  <div class="range-row">
+    <label>From</label>
     <input type="date" id="range-start" />
-    <label style="font-size:13px; color:var(--text-secondary);">To</label>
+    <label>To</label>
     <input type="date" id="range-end" />
     <button id="reset-range">Last 7 days</button>
   </div>
 
-  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+  <div class="columns">
     <div>
       <h3>Received</h3>
       <table>
+        <colgroup>
+          <col class="col-date"><col class="col-party"><col class="col-bill"><col class="col-amount">
+        </colgroup>
         <thead>
           <tr><th>Date</th><th>Customer</th><th>Bill #</th><th style="text-align:right;">Amount in</th></tr>
         </thead>
         <tbody id="in-body"></tbody>
+        <tfoot>
+          <tr>
+            <td><input type="date" id="in-date" /></td>
+            <td><input type="text" id="in-customer" placeholder="Customer" /></td>
+            <td><input type="text" id="in-bill" placeholder="Bill #" /></td>
+            <td><button id="in-add">Add</button></td>
+          </tr>
+          <tr>
+            <td colspan="3"></td>
+            <td><input type="number" id="in-amount" placeholder="Amount" /></td>
+          </tr>
+        </tfoot>
       </table>
-      <div class="add-row">
-        <input type="date" id="in-date" />
-        <input type="text" id="in-customer" placeholder="Customer" />
-        <input type="text" id="in-bill" placeholder="Bill #" style="width:80px;" />
-        <input type="number" id="in-amount" placeholder="Amount" style="width:90px;" />
-        <button id="in-add">+</button>
-      </div>
       <div class="total-row">
         <span>Total received</span><span id="in-total">0.00</span>
       </div>
@@ -132,18 +145,26 @@
     <div>
       <h3>Paid</h3>
       <table>
+        <colgroup>
+          <col class="col-date"><col class="col-party"><col class="col-bill"><col class="col-amount">
+        </colgroup>
         <thead>
           <tr><th>Date</th><th>Supplier</th><th>Bill #</th><th style="text-align:right;">Amount out</th></tr>
         </thead>
         <tbody id="out-body"></tbody>
+        <tfoot>
+          <tr>
+            <td><input type="date" id="out-date" /></td>
+            <td><input type="text" id="out-supplier" placeholder="Supplier" /></td>
+            <td><input type="text" id="out-bill" placeholder="Bill #" /></td>
+            <td><button id="out-add">Add</button></td>
+          </tr>
+          <tr>
+            <td colspan="3"></td>
+            <td><input type="number" id="out-amount" placeholder="Amount" /></td>
+          </tr>
+        </tfoot>
       </table>
-      <div class="add-row">
-        <input type="date" id="out-date" />
-        <input type="text" id="out-supplier" placeholder="Supplier" />
-        <input type="text" id="out-bill" placeholder="Bill #" style="width:80px;" />
-        <input type="number" id="out-amount" placeholder="Amount" style="width:90px;" />
-        <button id="out-add">+</button>
-      </div>
       <div class="total-row">
         <span>Total paid</span><span id="out-total">0.00</span>
       </div>
@@ -198,7 +219,7 @@ function rowHTML(row){
         </div>
         <div style="display:flex; gap:6px; margin-bottom:4px;">
           <input type="text" class="edit-bill" value="${row.bill_number||''}" placeholder="Bill #" style="flex:1;" />
-          <input type="number" class="edit-amount" value="${row.amount||''}" placeholder="Amount" style="width:90px;" />
+          <input type="number" class="edit-amount" value="${row.amount||''}" placeholder="Amount" style="width:110px;" />
         </div>
         <div class="edit-actions">
           <button class="save-btn">Save</button>
