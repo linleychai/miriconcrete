@@ -83,6 +83,13 @@
     background: var(--navy); display: flex; justify-content: space-between; align-items: center; color: #fff;
   }
   .balance-spacer { height: 76px; }
+  #mobile-total-bar {
+    display: none;
+    position: fixed; left: 0; right: 0; bottom: var(--balance-h, 76px); z-index: 19;
+    background: var(--row-hover); padding: 12px 16px; font-weight: 600;
+    justify-content: space-between; align-items: center;
+    border-top: 1px solid var(--border);
+  }
   .balance-row span:first-child { font-weight: 600; font-size: 16px; }
   #balance { font-weight: 700; font-size: 22px; color: var(--highlight); }
   #theme-toggle { width: 36px; height: 36px; padding: 0; background: transparent; color: #fff; border-color: rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; }
@@ -119,6 +126,8 @@
     .swipe-hint span { width: 6px; height: 6px; border-radius: 50%; background: var(--border-strong); }
     .swipe-hint span.active { background: var(--navy); }
     tr.filler-row { display: none; }
+    #mobile-total-bar { display: flex; }
+    .balance-spacer { height: 124px; }
   }
   .swipe-hint { display: none; }
 </style>
@@ -216,6 +225,7 @@
 
   <div class="swipe-hint" id="swipe-hint"><span class="dot active"></span><span class="dot"></span></div>
 
+  <div id="mobile-total-bar"><span id="mobile-total-label">Total received</span><span id="mobile-total-value">0.00</span></div>
   <div class="balance-spacer"></div>
   <div class="balance-row">
     <span>Ending balance</span>
@@ -367,6 +377,10 @@ function render(){
   balEl.textContent = (bal < 0 ? '-' : '') + fmt(Math.abs(bal));
   balEl.style.color = bal < 0 ? '#ff8a80' : 'var(--highlight)';
 
+  const activeDot = document.querySelector('#swipe-hint .dot.active');
+  const activeIdx = activeDot ? [...document.querySelectorAll('#swipe-hint .dot')].indexOf(activeDot) : 0;
+  if (typeof updateMobileTotalBar === 'function') updateMobileTotalBar(activeIdx);
+
   document.querySelectorAll('tr.row:not(.filler-row)').forEach(tr => {
     tr.onclick = () => { editingId = tr.dataset.id; render(); };
   });
@@ -490,6 +504,8 @@ async function showApp(){
   setDefaultRange();
   await loadRows();
   updateHeaderHeight();
+  updateBalanceHeight();
+  updateMobileTotalBar(0);
 }
 
 async function init(){
@@ -526,8 +542,28 @@ if (columnsEl && dots.length) {
   columnsEl.addEventListener('scroll', () => {
     const idx = Math.round(columnsEl.scrollLeft / columnsEl.clientWidth);
     dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+    updateMobileTotalBar(idx);
   }, { passive: true });
 }
+
+function updateMobileTotalBar(idx){
+  const labelEl = document.getElementById('mobile-total-label');
+  const valueEl = document.getElementById('mobile-total-value');
+  if (!labelEl || !valueEl) return;
+  if (idx === 1) {
+    labelEl.textContent = 'Total paid';
+    valueEl.textContent = document.getElementById('out-total').textContent;
+  } else {
+    labelEl.textContent = 'Total received';
+    valueEl.textContent = document.getElementById('in-total').textContent;
+  }
+}
+
+function updateBalanceHeight(){
+  const bar = document.querySelector('.balance-row');
+  if (bar) document.documentElement.style.setProperty('--balance-h', bar.offsetHeight + 'px');
+}
+window.addEventListener('resize', updateBalanceHeight);
 </script>
 </body>
 </html>
