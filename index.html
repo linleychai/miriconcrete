@@ -76,7 +76,7 @@
   #logout-btn { width: auto; background: transparent; color: #fff; border-color: rgba(255,255,255,0.5); }
   #logout-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
   .range-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-  .range-row input { width: auto; }
+  .range-row input[type="date"], .range-row input[type="number"] { width: auto; }
   .range-row button { width: auto; }
   .range-row label { font-size: 13px; color: var(--text-secondary); }
   .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -137,6 +137,10 @@
     <label>To</label>
     <input type="date" id="range-end" />
     <button id="reset-range">Last 7 days</button>
+    <span style="flex:1;"></span>
+    <label>Opening balance</label>
+    <input type="number" id="opening-balance" style="width:120px;" />
+    <button id="save-opening">Save</button>
   </div>
 
   <div class="columns">
@@ -212,6 +216,24 @@ const FIXED_EMAIL = 'miriconcrete@hotmail.com';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let rows = [];
+let openingBalance = 0;
+
+async function loadOpeningBalance(){
+  const { data: { user } } = await sb.auth.getUser();
+  const { data, error } = await sb.from('opening_balance').select('amount').eq('user_id', user.id).maybeSingle();
+  if (error) { console.error(error); return; }
+  openingBalance = data ? Number(data.amount) : 0;
+  document.getElementById('opening-balance').value = openingBalance;
+}
+
+document.getElementById('save-opening').onclick = async () => {
+  const amount = Number(document.getElementById('opening-balance').value) || 0;
+  const { data: { user } } = await sb.auth.getUser();
+  const { error } = await sb.from('opening_balance').upsert({ user_id: user.id, amount }, { onConflict: 'user_id' });
+  if (error) { console.error(error); alert('Failed to save: ' + error.message); return; }
+  openingBalance = amount;
+  render();
+};
 
 function fmt(n){ return Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function toISO(d){ return d.toISOString().slice(0,10); }
@@ -281,7 +303,15 @@ function render(){
 
   document.getElementById('in-total').textContent = fmt(totalIn);
   document.getElementById('out-total').textContent = fmt(totalOut);
-  const bal = totalIn - totalOut;
+
+  const end = document.getElementById('range-end').value;
+  let cumulativeIn = 0, cumulativeOut = 0;
+  rows.forEach(r => {
+    if (!r.date || (end && r.date > end)) return;
+    if (r.type === 'in') cumulativeIn += Number(r.amount) || 0;
+    else cumulativeOut += Number(r.amount) || 0;
+  });
+  const bal = openingBalance + cumulativeIn - cumulativeOut;
   const balEl = document.getElementById('balance');
   balEl.textContent = (bal < 0 ? '-' : '') + fmt(Math.abs(bal));
   balEl.style.color = bal < 0 ? '#ff8a80' : 'var(--highlight)';
@@ -401,6 +431,7 @@ async function showApp(){
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   setDefaultRange();
+  await loadOpeningBalance();
   await loadRows();
 }
 
@@ -412,6 +443,12 @@ async function init(){
     document.getElementById('login-screen').style.display = 'flex';
   }
 }
+
+document.addEventListener('click', (e) => {
+  if (e.target.matches('input[type="date"]') && e.target.showPicker) {
+    e.target.showPicker();
+  }
+});
 
 init();
 
