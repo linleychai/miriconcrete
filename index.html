@@ -84,8 +84,8 @@
   .range-row input[type="date"], .range-row input[type="number"] { width: auto; }
   .range-row button { width: auto; }
   .range-row label { font-size: 13px; color: var(--text-secondary); }
-  .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; position: relative; }
-  .date-divider { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid var(--border-strong); pointer-events: none; }
+  .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  tr.group-end td { border-bottom: 2px solid var(--border-strong); }
 
   @media (max-width: 700px) {
     .page { padding: 0 0 24px; }
@@ -244,9 +244,9 @@ function inRange(dateStr){
 
 let editingId = null;
 
-function rowHTML(row, showDate){
+function rowHTML(row, showDate, isGroupEnd){
   if (row.id === editingId) {
-    return `<tr class="editing" data-id="${row.id}">
+    return `<tr class="editing${isGroupEnd ? ' group-end' : ''}" data-id="${row.id}">
       <td colspan="4">
         <div style="display:flex; gap:6px; margin-bottom:4px;">
           <input type="date" class="edit-date" value="${row.date||''}" style="flex:1;" />
@@ -267,27 +267,36 @@ function rowHTML(row, showDate){
   const dateCell = showDate
     ? `<td class="sticky-date">${row.date||''}</td>`
     : `<td class="blank-date"></td>`;
-  return `<tr class="row" data-id="${row.id}">
+  return `<tr class="row${isGroupEnd ? ' group-end' : ''}" data-id="${row.id}">
     ${dateCell}<td>${row.party||''}</td><td>${row.bill_number||''}</td><td style="text-align:right;">${fmt(row.amount)}</td>
   </tr>`;
 }
 
-function groupedBodyHTML(list){
-  let html = '';
-  let i = 0;
-  while (i < list.length) {
-    const date = list[i].date;
-    let group = '';
-    let first = true;
-    while (i < list.length && list[i].date === date) {
-      const row = list[i];
-      group += rowHTML(row, row.id === editingId ? true : first);
-      first = false;
-      i++;
+function fillerRowHTML(showDate, date, isGroupEnd){
+  return `<tr class="row filler-row${isGroupEnd ? ' group-end' : ''}">
+    <td class="${showDate ? 'sticky-date' : 'blank-date'}">${showDate ? date : ''}</td><td></td><td></td><td></td>
+  </tr>`;
+}
+
+function groupByDate(list){
+  const map = {};
+  list.forEach(r => { (map[r.date] = map[r.date] || []).push(r); });
+  return map;
+}
+
+function buildDateGroup(date, list, rowsCount){
+  let group = '';
+  for (let idx = 0; idx < rowsCount; idx++) {
+    const isGroupEnd = idx === rowsCount - 1;
+    if (idx < list.length) {
+      const row = list[idx];
+      group += rowHTML(row, idx === 0 || row.id === editingId, isGroupEnd);
+    } else {
+      const showDate = idx === 0 && list.length === 0;
+      group += fillerRowHTML(showDate, date, isGroupEnd);
     }
-    html += `<tbody class="date-group" data-date="${date}">${group}</tbody>`;
   }
-  return html;
+  return `<tbody class="date-group" data-date="${date}">${group}</tbody>`;
 }
 
 function render(){
@@ -304,8 +313,21 @@ function render(){
   inRows.forEach(r => totalIn += Number(r.amount) || 0);
   outRows.forEach(r => totalOut += Number(r.amount) || 0);
 
-  inTable.insertAdjacentHTML('beforeend', groupedBodyHTML(inRows));
-  outTable.insertAdjacentHTML('beforeend', groupedBodyHTML(outRows));
+  const inGroups = groupByDate(inRows);
+  const outGroups = groupByDate(outRows);
+  const allDates = Array.from(new Set([...Object.keys(inGroups), ...Object.keys(outGroups)])).sort();
+
+  let inHTML = '', outHTML = '';
+  allDates.forEach(date => {
+    const inList = inGroups[date] || [];
+    const outList = outGroups[date] || [];
+    const rowsCount = Math.max(inList.length, outList.length, 1);
+    inHTML += buildDateGroup(date, inList, rowsCount);
+    outHTML += buildDateGroup(date, outList, rowsCount);
+  });
+
+  inTable.insertAdjacentHTML('beforeend', inHTML);
+  outTable.insertAdjacentHTML('beforeend', outHTML);
 
   document.getElementById('in-total').textContent = fmt(totalIn);
   document.getElementById('out-total').textContent = fmt(totalOut);
@@ -346,43 +368,7 @@ function render(){
       if (confirm('Delete this entry?')) deleteRow(editTr.dataset.id);
     };
   }
-
-  requestAnimationFrame(() => requestAnimationFrame(drawDividers));
-  setTimeout(drawDividers, 80);
 }
-
-function drawDividers(){
-  const container = document.querySelector('.columns');
-  if (!container) return;
-  container.querySelectorAll('.date-divider').forEach(el => el.remove());
-
-  if (window.innerWidth <= 700) return;
-
-  const containerRect = container.getBoundingClientRect();
-  const inGroups = [...document.querySelectorAll('#in-table tbody.date-group')];
-  const outGroups = [...document.querySelectorAll('#out-table tbody.date-group')];
-  const dates = Array.from(new Set([
-    ...inGroups.map(g => g.dataset.date),
-    ...outGroups.map(g => g.dataset.date)
-  ]));
-
-  dates.forEach(date => {
-    const inG = inGroups.find(g => g.dataset.date === date);
-    const outG = outGroups.find(g => g.dataset.date === date);
-    let bottom = -Infinity;
-    if (inG) bottom = Math.max(bottom, inG.getBoundingClientRect().bottom);
-    if (outG) bottom = Math.max(bottom, outG.getBoundingClientRect().bottom);
-    if (bottom === -Infinity) return;
-    const top = bottom - containerRect.top;
-    const div = document.createElement('div');
-    div.className = 'date-divider';
-    div.style.top = top + 'px';
-    container.appendChild(div);
-  });
-}
-
-window.addEventListener('resize', () => requestAnimationFrame(drawDividers));
-window.addEventListener('load', drawDividers);
 
 async function saveEdit(id, editTr){
   const date = editTr.querySelector('.edit-date').value;
