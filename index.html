@@ -274,7 +274,7 @@ function rowHTML(row, showDate, isGroupEnd){
 
 function fillerRowHTML(showDate, date, isGroupEnd){
   return `<tr class="row filler-row${isGroupEnd ? ' group-end' : ''}">
-    <td class="${showDate ? 'sticky-date' : 'blank-date'}">${showDate ? date : ''}</td><td></td><td></td><td></td>
+    <td class="${showDate ? 'sticky-date' : 'blank-date'}">${showDate ? date : '&nbsp;'}</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
   </tr>`;
 }
 
