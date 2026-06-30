@@ -137,10 +137,10 @@
     <label>To</label>
     <input type="date" id="range-end" />
     <button id="reset-range">Last 7 days</button>
-    <span style="flex:1;"></span>
-    <label>Opening balance</label>
-    <input type="number" id="opening-balance" style="width:120px;" />
-    <button id="save-opening">Save</button>
+  </div>
+
+  <div class="total-row" id="opening-balance-row" style="margin-bottom:16px;">
+    <span>Opening balance</span><span id="opening-balance-display">0.00</span>
   </div>
 
   <div class="columns">
@@ -202,7 +202,7 @@
   <div class="swipe-hint" id="swipe-hint"><span class="dot active"></span><span class="dot"></span></div>
 
   <div class="balance-row">
-    <span>Balance</span>
+    <span>Ending balance</span>
     <span id="balance">0.00</span>
   </div>
   </div>
@@ -216,24 +216,6 @@ const FIXED_EMAIL = 'miriconcrete@hotmail.com';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let rows = [];
-let openingBalance = 0;
-
-async function loadOpeningBalance(){
-  const { data: { user } } = await sb.auth.getUser();
-  const { data, error } = await sb.from('opening_balance').select('amount').eq('user_id', user.id).maybeSingle();
-  if (error) { console.error(error); return; }
-  openingBalance = data ? Number(data.amount) : 0;
-  document.getElementById('opening-balance').value = openingBalance;
-}
-
-document.getElementById('save-opening').onclick = async () => {
-  const amount = Number(document.getElementById('opening-balance').value) || 0;
-  const { data: { user } } = await sb.auth.getUser();
-  const { error } = await sb.from('opening_balance').upsert({ user_id: user.id, amount }, { onConflict: 'user_id' });
-  if (error) { console.error(error); alert('Failed to save: ' + error.message); return; }
-  openingBalance = amount;
-  render();
-};
 
 function fmt(n){ return Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function toISO(d){ return d.toISOString().slice(0,10); }
@@ -304,14 +286,26 @@ function render(){
   document.getElementById('in-total').textContent = fmt(totalIn);
   document.getElementById('out-total').textContent = fmt(totalOut);
 
+  const start = document.getElementById('range-start').value;
   const end = document.getElementById('range-end').value;
-  let cumulativeIn = 0, cumulativeOut = 0;
+
+  let openingIn = 0, openingOut = 0;
+  let endingIn = 0, endingOut = 0;
   rows.forEach(r => {
-    if (!r.date || (end && r.date > end)) return;
-    if (r.type === 'in') cumulativeIn += Number(r.amount) || 0;
-    else cumulativeOut += Number(r.amount) || 0;
+    if (!r.date) return;
+    const amt = Number(r.amount) || 0;
+    if (start && r.date < start) {
+      if (r.type === 'in') openingIn += amt; else openingOut += amt;
+    }
+    if (!end || r.date <= end) {
+      if (r.type === 'in') endingIn += amt; else endingOut += amt;
+    }
   });
-  const bal = openingBalance + cumulativeIn - cumulativeOut;
+
+  const opening = openingIn - openingOut;
+  document.getElementById('opening-balance-display').textContent = (opening < 0 ? '-' : '') + fmt(Math.abs(opening));
+
+  const bal = endingIn - endingOut;
   const balEl = document.getElementById('balance');
   balEl.textContent = (bal < 0 ? '-' : '') + fmt(Math.abs(bal));
   balEl.style.color = bal < 0 ? '#ff8a80' : 'var(--highlight)';
@@ -431,7 +425,6 @@ async function showApp(){
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   setDefaultRange();
-  await loadOpeningBalance();
   await loadRows();
 }
 
