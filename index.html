@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ledger</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --border: #ddd;
+    --border-strong: #aaa;
+    --text-secondary: #666;
+    --text-muted: #999;
+    --text-danger: #c0392b;
+    --text-success: #1e8449;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  body { margin: 0; padding: 24px; max-width: 900px; margin: 0 auto; color: #1a1a1a; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 6px 4px; color: var(--text-secondary); font-weight: 500; border-bottom: 1px solid var(--border); }
+  td { padding: 6px 4px; border-bottom: 1px solid var(--border); }
+  input, button { font-size: 13px; padding: 6px 8px; border: 1px solid var(--border-strong); border-radius: 6px; }
+  button { cursor: pointer; background: #fff; }
+  button:hover { background: #f5f5f5; }
+  h3 { margin: 0 0 8px; }
+  .del-btn { border: none; background: none; cursor: pointer; color: var(--text-muted); padding: 0; }
+  #login-screen { max-width: 320px; margin: 80px auto; display: flex; flex-direction: column; gap: 10px; }
+  #app { display: none; }
+  #logout-row { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+  #logout-row button { font-size: 12px; }
+  .error { color: var(--text-danger); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <h3>Ledger</h3>
+  <input type="password" id="password-input" placeholder="Password" />
+  <button id="login-btn">Unlock</button>
+  <div class="error" id="login-error"></div>
+</div>
+
+<div id="app">
+  <div id="logout-row"><button id="logout-btn">Sign out</button></div>
+
+  <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+    <label style="font-size:13px; color:var(--text-secondary);">From</label>
+    <input type="date" id="range-start" />
+    <label style="font-size:13px; color:var(--text-secondary);">To</label>
+    <input type="date" id="range-end" />
+    <button id="reset-range">Last 7 days</button>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+    <div>
+      <h3>Received</h3>
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Customer</th><th style="text-align:right;">Amount in</th><th></th></tr>
+        </thead>
+        <tbody id="in-body"></tbody>
+      </table>
+      <div style="display:flex; gap:6px; margin-top:8px;">
+        <input type="date" id="in-date" style="flex:1;" />
+        <input type="text" id="in-customer" placeholder="Customer" style="flex:1;" />
+        <input type="number" id="in-amount" placeholder="Amount" style="width:90px;" />
+        <button id="in-add">+</button>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-top:12px; padding-top:8px; border-top:1px solid var(--border-strong); font-weight:600;">
+        <span>Total received</span><span id="in-total">0.00</span>
+      </div>
+    </div>
+
+    <div>
+      <h3>Paid</h3>
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Supplier</th><th style="text-align:right;">Amount out</th><th></th></tr>
+        </thead>
+        <tbody id="out-body"></tbody>
+      </table>
+      <div style="display:flex; gap:6px; margin-top:8px;">
+        <input type="date" id="out-date" style="flex:1;" />
+        <input type="text" id="out-supplier" placeholder="Supplier" style="flex:1;" />
+        <input type="number" id="out-amount" placeholder="Amount" style="width:90px;" />
+        <button id="out-add">+</button>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-top:12px; padding-top:8px; border-top:1px solid var(--border-strong); font-weight:600;">
+        <span>Total paid</span><span id="out-total">0.00</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:16px; padding-top:12px; border-top:2px solid var(--border-strong); display:flex; justify-content:space-between; align-items:center;">
+    <span style="font-weight:600; font-size:16px;">Balance</span>
+    <span id="balance" style="font-weight:600; font-size:20px;">0.00</span>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://nykvifpqbldhfkpthgef.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_1uI5rkXuVSbZvE8EuNT4Kw_5hZfm9J0';
+const FIXED_EMAIL = 'miriconcrete@hotmail.com';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let rows = [];
+
+function fmt(n){ return Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function toISO(d){ return d.toISOString().slice(0,10); }
+
+function setDefaultRange(){
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - 6);
+  document.getElementById('range-start').value = toISO(start);
+  document.getElementById('range-end').value = toISO(end);
+}
+
+function inRange(dateStr){
+  const start = document.getElementById('range-start').value;
+  const end = document.getElementById('range-end').value;
+  if (!dateStr) return false;
+  if (start && dateStr < start) return false;
+  if (end && dateStr > end) return false;
+  return true;
+}
+
+function render(){
+  const inBody = document.getElementById('in-body');
+  const outBody = document.getElementById('out-body');
+  inBody.innerHTML = '';
+  outBody.innerHTML = '';
+  let totalIn = 0, totalOut = 0;
+
+  rows.filter(r => r.type === 'in').forEach(row => {
+    if (!inRange(row.date)) return;
+    totalIn += Number(row.amount) || 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${row.date||''}</td><td>${row.party||''}</td><td style="text-align:right;">${fmt(row.amount)}</td><td><button class="del-btn" data-id="${row.id}">×</button></td>`;
+    inBody.appendChild(tr);
+  });
+
+  rows.filter(r => r.type === 'out').forEach(row => {
+    if (!inRange(row.date)) return;
+    totalOut += Number(row.amount) || 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${row.date||''}</td><td>${row.party||''}</td><td style="text-align:right;">${fmt(row.amount)}</td><td><button class="del-btn" data-id="${row.id}">×</button></td>`;
+    outBody.appendChild(tr);
+  });
+
+  document.getElementById('in-total').textContent = fmt(totalIn);
+  document.getElementById('out-total').textContent = fmt(totalOut);
+  const bal = totalIn - totalOut;
+  const balEl = document.getElementById('balance');
+  balEl.textContent = (bal < 0 ? '-' : '') + fmt(Math.abs(bal));
+  balEl.style.color = bal < 0 ? 'var(--text-danger)' : 'var(--text-success)';
+
+  document.querySelectorAll('.del-btn').forEach(b => b.onclick = () => deleteRow(b.dataset.id));
+}
+
+async function loadRows(){
+  const { data, error } = await sb.from('transactions').select('*').order('date', { ascending: false });
+  if (error) { console.error(error); return; }
+  rows = data;
+  render();
+}
+
+async function addRow(type, date, party, amount){
+  const { data: { user } } = await sb.auth.getUser();
+  const { error } = await sb.from('transactions').insert({
+    user_id: user.id, type, date, party, amount
+  });
+  if (error) { console.error(error); alert('Failed to save: ' + error.message); return; }
+  await loadRows();
+}
+
+async function deleteRow(id){
+  const { error } = await sb.from('transactions').delete().eq('id', id);
+  if (error) { console.error(error); return; }
+  await loadRows();
+}
+
+document.getElementById('range-start').onchange = render;
+document.getElementById('range-end').onchange = render;
+document.getElementById('reset-range').onclick = () => { setDefaultRange(); render(); };
+
+document.getElementById('in-add').onclick = () => {
+  const date = document.getElementById('in-date').value;
+  const customer = document.getElementById('in-customer').value;
+  const amount = document.getElementById('in-amount').value;
+  if (!amount || !date) return;
+  addRow('in', date, customer, amount);
+  document.getElementById('in-customer').value = '';
+  document.getElementById('in-amount').value = '';
+};
+
+document.getElementById('out-add').onclick = () => {
+  const date = document.getElementById('out-date').value;
+  const supplier = document.getElementById('out-supplier').value;
+  const amount = document.getElementById('out-amount').value;
+  if (!amount || !date) return;
+  addRow('out', date, supplier, amount);
+  document.getElementById('out-supplier').value = '';
+  document.getElementById('out-amount').value = '';
+};
+
+document.getElementById('logout-btn').onclick = async () => {
+  await sb.auth.signOut();
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+};
+
+document.getElementById('login-btn').onclick = login;
+document.getElementById('password-input').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+
+async function login(){
+  const password = document.getElementById('password-input').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email: FIXED_EMAIL, password });
+  if (error) { errEl.textContent = 'Incorrect password.'; return; }
+  showApp();
+}
+
+async function showApp(){
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  setDefaultRange();
+  await loadRows();
+}
+
+async function init(){
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    showApp();
+  } else {
+    document.getElementById('login-screen').style.display = 'flex';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
