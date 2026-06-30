@@ -43,6 +43,8 @@
   col.col-amount { width: 24%; }
   th { text-align: left; padding: 8px 4px; color: var(--text); font-weight: 600; border-bottom: 2px solid var(--navy); }
   td { padding: 8px 4px; border-bottom: 1px solid var(--border); overflow: hidden; }
+  td.sticky-date { position: sticky; top: 0; background: var(--bg); z-index: 2; }
+  td.blank-date { color: var(--text-muted); }
   tfoot td { border-bottom: none; padding-top: 10px; }
   input, button { font-size: 13px; padding: 7px 8px; border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text); background: var(--surface); box-sizing: border-box; height: 36px; width: 100%; }
   input:focus, button:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 2px var(--highlight); }
@@ -146,14 +148,13 @@
   <div class="columns">
     <div>
       <h3>Received</h3>
-      <table>
+      <table id="in-table">
         <colgroup>
           <col class="col-date"><col class="col-party"><col class="col-bill"><col class="col-amount">
         </colgroup>
         <thead>
           <tr><th>Date</th><th>Customer</th><th>Bill #</th><th style="text-align:right;">Amount in</th></tr>
         </thead>
-        <tbody id="in-body"></tbody>
         <tfoot>
           <tr>
             <td><input type="date" id="in-date" /></td>
@@ -173,14 +174,13 @@
 
     <div>
       <h3>Paid</h3>
-      <table>
+      <table id="out-table">
         <colgroup>
           <col class="col-date"><col class="col-party"><col class="col-bill"><col class="col-amount">
         </colgroup>
         <thead>
           <tr><th>Date</th><th>Supplier</th><th>Bill #</th><th style="text-align:right;">Amount out</th></tr>
         </thead>
-        <tbody id="out-body"></tbody>
         <tfoot>
           <tr>
             <td><input type="date" id="out-date" /></td>
@@ -239,7 +239,7 @@ function inRange(dateStr){
 
 let editingId = null;
 
-function rowHTML(row){
+function rowHTML(row, showDate){
   if (row.id === editingId) {
     return `<tr class="editing" data-id="${row.id}">
       <td colspan="4">
@@ -259,29 +259,48 @@ function rowHTML(row){
       </td>
     </tr>`;
   }
+  const dateCell = showDate
+    ? `<td class="sticky-date">${row.date||''}</td>`
+    : `<td class="blank-date"></td>`;
   return `<tr class="row" data-id="${row.id}">
-    <td>${row.date||''}</td><td>${row.party||''}</td><td>${row.bill_number||''}</td><td style="text-align:right;">${fmt(row.amount)}</td>
+    ${dateCell}<td>${row.party||''}</td><td>${row.bill_number||''}</td><td style="text-align:right;">${fmt(row.amount)}</td>
   </tr>`;
 }
 
+function groupedBodyHTML(list){
+  let html = '';
+  let i = 0;
+  while (i < list.length) {
+    const date = list[i].date;
+    let group = '';
+    let first = true;
+    while (i < list.length && list[i].date === date) {
+      const row = list[i];
+      group += rowHTML(row, row.id === editingId ? true : first);
+      first = false;
+      i++;
+    }
+    html += `<tbody class="date-group">${group}</tbody>`;
+  }
+  return html;
+}
+
 function render(){
-  const inBody = document.getElementById('in-body');
-  const outBody = document.getElementById('out-body');
-  inBody.innerHTML = '';
-  outBody.innerHTML = '';
+  const inTable = document.getElementById('in-table');
+  const outTable = document.getElementById('out-table');
+  inTable.querySelectorAll('tbody.date-group').forEach(el => el.remove());
+  outTable.querySelectorAll('tbody.date-group').forEach(el => el.remove());
+
   let totalIn = 0, totalOut = 0;
 
-  rows.filter(r => r.type === 'in').forEach(row => {
-    if (!inRange(row.date)) return;
-    totalIn += Number(row.amount) || 0;
-    inBody.insertAdjacentHTML('beforeend', rowHTML(row));
-  });
+  const inRows = rows.filter(r => r.type === 'in' && inRange(r.date));
+  const outRows = rows.filter(r => r.type === 'out' && inRange(r.date));
 
-  rows.filter(r => r.type === 'out').forEach(row => {
-    if (!inRange(row.date)) return;
-    totalOut += Number(row.amount) || 0;
-    outBody.insertAdjacentHTML('beforeend', rowHTML(row));
-  });
+  inRows.forEach(r => totalIn += Number(r.amount) || 0);
+  outRows.forEach(r => totalOut += Number(r.amount) || 0);
+
+  inTable.insertAdjacentHTML('beforeend', groupedBodyHTML(inRows));
+  outTable.insertAdjacentHTML('beforeend', groupedBodyHTML(outRows));
 
   document.getElementById('in-total').textContent = fmt(totalIn);
   document.getElementById('out-total').textContent = fmt(totalOut);
@@ -441,6 +460,17 @@ document.addEventListener('click', (e) => {
   if (e.target.matches('input[type="date"]') && e.target.showPicker) {
     e.target.showPicker();
   }
+});
+
+['in-date','in-customer','in-bill','in-amount'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('in-add').click(); }
+  });
+});
+['out-date','out-supplier','out-bill','out-amount'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('out-add').click(); }
+  });
 });
 
 init();
