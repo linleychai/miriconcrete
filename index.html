@@ -7,42 +7,80 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
-    --border: #ddd;
-    --border-strong: #aaa;
-    --text-secondary: #666;
-    --text-muted: #999;
+    --navy: #0A457D;
+    --highlight: #A7CDEE;
+    --border: #d8e6f3;
+    --border-strong: #A7CDEE;
+    --text-secondary: #4A6A8A;
+    --text-muted: #8AA8C4;
     --text-danger: #c0392b;
     --text-success: #1e8449;
+    --bg: #fff;
+    --text: #0A457D;
+    --row-hover: #eef6fc;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
-  body { margin: 0; padding: 24px; max-width: 900px; margin: 0 auto; color: #1a1a1a; }
+  [data-theme="dark"] {
+    --border: #1f3b54;
+    --border-strong: #2c557a;
+    --text-secondary: #9fc1de;
+    --text-muted: #6a8cab;
+    --bg: #0d2238;
+    --text: #eaf2fa;
+    --row-hover: #16314b;
+    --highlight: #A7CDEE;
+  }
+  body { margin: 0; padding: 0; color: var(--text); background: var(--bg); }
+  .page { max-width: 900px; margin: 0 auto; padding: 0 24px 24px; box-sizing: border-box; }
+  .topbar { background: var(--navy); color: #fff; padding: 18px 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+  .topbar h3 { margin: 0; color: #fff; }
+  .topbar .subtitle { font-size: 13px; color: var(--highlight); }
+  .topbar-actions { display: flex; align-items: center; gap: 8px; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; padding: 6px 4px; color: var(--text-secondary); font-weight: 500; border-bottom: 1px solid var(--border); }
-  td { padding: 6px 4px; border-bottom: 1px solid var(--border); }
-  input, button { font-size: 13px; padding: 6px 8px; border: 1px solid var(--border-strong); border-radius: 6px; }
-  button { cursor: pointer; background: #fff; }
-  button:hover { background: #f5f5f5; }
-  h3 { margin: 0 0 8px; }
+  th { text-align: left; padding: 8px 4px; color: var(--text); font-weight: 600; border-bottom: 2px solid var(--navy); }
+  td { padding: 8px 4px; border-bottom: 1px solid var(--border); }
+  input, button { font-size: 13px; padding: 7px 9px; border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text); background: var(--bg); box-sizing: border-box; height: 36px; }
+  input:focus, button:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 2px var(--highlight); }
+  button { cursor: pointer; }
+  button:hover { background: var(--highlight); color: #0A457D; }
+  button#in-add, button#out-add { background: var(--navy); color: #fff; border-color: var(--navy); font-weight: 600; width: 36px; padding: 0; flex-shrink: 0; }
+  button#in-add:hover, button#out-add:hover { background: #08365f; }
+  .edit-actions .save-btn { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .edit-actions .save-btn:hover { background: #08365f; }
+  h3 { margin: 0 0 8px; color: var(--text); }
+  .add-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+  .add-row input { flex-shrink: 0; }
+  .add-row input[type="date"] { flex: 1; min-width: 0; }
+  .add-row input[placeholder="Customer"], .add-row input[placeholder="Supplier"] { flex: 1; min-width: 0; }
   .del-btn { border: none; background: none; cursor: pointer; color: var(--text-muted); padding: 0; }
   tr.row { cursor: pointer; }
-  tr.row:active { background: #f5f5f5; }
+  tr.row:active, tr.row:hover { background: var(--row-hover); }
+  tr.editing { background: var(--row-hover); }
   tr.editing td { padding: 8px 4px; }
-  tr.editing input { width: 100%; box-sizing: border-box; }
+  tr.editing input { width: 100%; }
   .edit-actions { display: flex; gap: 6px; margin-top: 6px; }
-  .edit-actions button { flex: 1; padding: 8px; }
+  .edit-actions button { flex: 1; padding: 8px; height: auto; }
   .edit-actions .delete-btn { color: var(--text-danger); border-color: var(--text-danger); }
   #login-screen { max-width: 320px; margin: 80px auto; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
   #login-screen input, #login-screen button { width: 100%; }
+  #login-screen #login-btn { background: var(--navy); color: #fff; border-color: var(--navy); font-weight: 600; }
+  #login-screen #login-btn:hover { background: #08365f; }
   #app { display: none; }
-  #logout-row { display: flex; justify-content: flex-end; margin-bottom: 16px; }
-  #logout-row button { font-size: 12px; }
   .error { color: var(--text-danger); font-size: 13px; }
+  .total-row { display: flex; justify-content: space-between; margin-top: 12px; padding: 10px 12px; background: var(--row-hover); border-radius: 6px; font-weight: 600; }
+  .balance-row { margin-top: 16px; padding: 16px; background: var(--navy); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; color: #fff; }
+  .balance-row span:first-child { font-weight: 600; font-size: 16px; }
+  #balance { font-weight: 700; font-size: 22px; color: var(--highlight); }
+  #theme-toggle { width: 36px; height: 36px; padding: 0; background: transparent; color: #fff; border-color: rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; }
+  #theme-toggle:hover { background: rgba(255,255,255,0.15); color: #fff; }
+  #logout-btn { background: transparent; color: #fff; border-color: rgba(255,255,255,0.5); }
+  #logout-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
 </style>
 </head>
 <body>
 
 <div id="login-screen">
-  <h3 style="margin-bottom:0;">Miri Concrete</h3>
+  <h3 style="margin-bottom:0; color:#0A457D;">Miri Concrete</h3>
   <div style="font-size:14px; color:var(--text-secondary); margin-bottom:8px;">Daily Ledger</div>
   <input type="password" id="password-input" placeholder="Password" />
   <button id="login-btn">Unlock</button>
@@ -50,8 +88,18 @@
 </div>
 
 <div id="app">
-  <div id="logout-row"><button id="logout-btn">Sign out</button></div>
+  <div class="topbar">
+    <div>
+      <h3>Miri Concrete</h3>
+      <div class="subtitle">Daily Ledger</div>
+    </div>
+    <div class="topbar-actions">
+      <button id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">&#9789;</button>
+      <button id="logout-btn">Sign out</button>
+    </div>
+  </div>
 
+  <div class="page">
   <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
     <label style="font-size:13px; color:var(--text-secondary);">From</label>
     <input type="date" id="range-start" />
@@ -69,14 +117,14 @@
         </thead>
         <tbody id="in-body"></tbody>
       </table>
-      <div style="display:flex; gap:6px; margin-top:8px;">
-        <input type="date" id="in-date" style="flex:1;" />
-        <input type="text" id="in-customer" placeholder="Customer" style="flex:1;" />
-        <input type="text" id="in-bill" placeholder="Bill #" style="width:90px;" />
+      <div class="add-row">
+        <input type="date" id="in-date" />
+        <input type="text" id="in-customer" placeholder="Customer" />
+        <input type="text" id="in-bill" placeholder="Bill #" style="width:80px;" />
         <input type="number" id="in-amount" placeholder="Amount" style="width:90px;" />
         <button id="in-add">+</button>
       </div>
-      <div style="display:flex; justify-content:space-between; margin-top:12px; padding-top:8px; border-top:1px solid var(--border-strong); font-weight:600;">
+      <div class="total-row">
         <span>Total received</span><span id="in-total">0.00</span>
       </div>
     </div>
@@ -89,22 +137,23 @@
         </thead>
         <tbody id="out-body"></tbody>
       </table>
-      <div style="display:flex; gap:6px; margin-top:8px;">
-        <input type="date" id="out-date" style="flex:1;" />
-        <input type="text" id="out-supplier" placeholder="Supplier" style="flex:1;" />
-        <input type="text" id="out-bill" placeholder="Bill #" style="width:90px;" />
+      <div class="add-row">
+        <input type="date" id="out-date" />
+        <input type="text" id="out-supplier" placeholder="Supplier" />
+        <input type="text" id="out-bill" placeholder="Bill #" style="width:80px;" />
         <input type="number" id="out-amount" placeholder="Amount" style="width:90px;" />
         <button id="out-add">+</button>
       </div>
-      <div style="display:flex; justify-content:space-between; margin-top:12px; padding-top:8px; border-top:1px solid var(--border-strong); font-weight:600;">
+      <div class="total-row">
         <span>Total paid</span><span id="out-total">0.00</span>
       </div>
     </div>
   </div>
 
-  <div style="margin-top:16px; padding-top:12px; border-top:2px solid var(--border-strong); display:flex; justify-content:space-between; align-items:center;">
-    <span style="font-weight:600; font-size:16px;">Balance</span>
-    <span id="balance" style="font-weight:600; font-size:20px;">0.00</span>
+  <div class="balance-row">
+    <span>Balance</span>
+    <span id="balance">0.00</span>
+  </div>
   </div>
 </div>
 
@@ -188,7 +237,7 @@ function render(){
   const bal = totalIn - totalOut;
   const balEl = document.getElementById('balance');
   balEl.textContent = (bal < 0 ? '-' : '') + fmt(Math.abs(bal));
-  balEl.style.color = bal < 0 ? 'var(--text-danger)' : 'var(--text-success)';
+  balEl.style.color = bal < 0 ? '#ff8a80' : 'var(--highlight)';
 
   document.querySelectorAll('tr.row').forEach(tr => {
     tr.onclick = () => { editingId = tr.dataset.id; render(); };
@@ -265,6 +314,23 @@ document.getElementById('out-add').onclick = () => {
   document.getElementById('out-bill').value = '';
   document.getElementById('out-amount').value = '';
 };
+
+document.getElementById('theme-toggle').onclick = () => {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  setTheme(isDark ? 'light' : 'dark');
+};
+
+function setTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('theme', theme);
+  document.getElementById('theme-toggle').innerHTML = theme === 'dark' ? '&#9728;' : '&#9789;';
+}
+
+(function initTheme(){
+  const saved = localStorage.getItem('theme');
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  setTheme(saved || (prefersDark ? 'dark' : 'light'));
+})();
 
 document.getElementById('logout-btn').onclick = async () => {
   await sb.auth.signOut();
