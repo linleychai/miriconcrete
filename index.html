@@ -46,8 +46,14 @@
   tr.filler-row td { border-bottom: none; }
   tr.filler-row:hover { background: none; }
   tr.filler-row { cursor: default; }
-  td.sticky-date { position: sticky; top: var(--header-h, 0px); background: var(--bg); z-index: 2; }
+  td.sticky-date { background: var(--bg); font-weight: 600; }
   td.blank-date { color: var(--text-muted); }
+  .table-wrap { position: relative; }
+  .current-date-label {
+    display: none; position: sticky; top: var(--header-h, 0px); z-index: 5;
+    background: var(--bg); padding: 6px 4px; font-weight: 600; font-size: 13px;
+    border-bottom: 1px solid var(--border);
+  }
   tfoot td { border-bottom: none; padding-top: 10px; }
   input, button { font-size: 13px; padding: 7px 8px; border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text); background: var(--surface); box-sizing: border-box; height: 36px; width: 100%; }
   input:focus, button:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 2px var(--highlight); }
@@ -172,6 +178,8 @@
   <div class="columns">
     <div>
       <h3>Received</h3>
+      <div class="table-wrap">
+      <div class="current-date-label" id="in-current-date"></div>
       <table id="in-table">
         <colgroup>
           <col class="col-date"><col class="col-party"><col class="col-bill"><col class="col-amount">
@@ -191,6 +199,7 @@
           </tr>
         </tfoot>
       </table>
+      </div>
       <div class="total-row">
         <span>Total received</span><span id="in-total">0.00</span>
       </div>
@@ -198,6 +207,8 @@
 
     <div>
       <h3>Paid</h3>
+      <div class="table-wrap">
+      <div class="current-date-label" id="out-current-date"></div>
       <table id="out-table">
         <colgroup>
           <col class="col-date"><col class="col-party"><col class="col-bill"><col class="col-amount">
@@ -217,6 +228,7 @@
           </tr>
         </tfoot>
       </table>
+      </div>
       <div class="total-row">
         <span>Total paid</span><span id="out-total">0.00</span>
       </div>
@@ -380,6 +392,7 @@ function render(){
   const activeDot = document.querySelector('#swipe-hint .dot.active');
   const activeIdx = activeDot ? [...document.querySelectorAll('#swipe-hint .dot')].indexOf(activeDot) : 0;
   if (typeof updateMobileTotalBar === 'function') updateMobileTotalBar(activeIdx);
+  if (typeof updateAllCurrentDateLabels === 'function') requestAnimationFrame(updateAllCurrentDateLabels);
 
   document.querySelectorAll('tr.row:not(.filler-row)').forEach(tr => {
     tr.onclick = () => { editingId = tr.dataset.id; render(); };
@@ -480,6 +493,41 @@ function updateHeaderHeight(){
 }
 window.addEventListener('resize', updateHeaderHeight);
 
+function updateCurrentDateLabel(tableId, labelId){
+  const table = document.getElementById(tableId);
+  const label = document.getElementById(labelId);
+  if (!table || !label) return;
+  const headerH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-h')) || 0;
+  const groups = [...table.querySelectorAll('tbody.date-group')];
+  let active = null;
+  for (const g of groups) {
+    const rect = g.getBoundingClientRect();
+    if (rect.top <= headerH + 1 && rect.bottom > headerH + 1) { active = g; break; }
+  }
+  if (active && active.getBoundingClientRect().top < headerH - 4) {
+    label.textContent = active.dataset.date;
+    label.style.display = 'block';
+  } else {
+    label.style.display = 'none';
+  }
+}
+
+function updateAllCurrentDateLabels(){
+  updateCurrentDateLabel('in-table', 'in-current-date');
+  updateCurrentDateLabel('out-table', 'out-current-date');
+}
+
+let labelScrollQueued = false;
+function queueLabelUpdate(){
+  if (labelScrollQueued) return;
+  labelScrollQueued = true;
+  requestAnimationFrame(() => { updateAllCurrentDateLabels(); labelScrollQueued = false; });
+}
+window.addEventListener('scroll', queueLabelUpdate, { passive: true });
+window.addEventListener('resize', queueLabelUpdate);
+const columnsForLabels = document.querySelector('.columns');
+if (columnsForLabels) columnsForLabels.addEventListener('scroll', queueLabelUpdate, { passive: true });
+
 document.getElementById('logout-btn').onclick = async () => {
   await sb.auth.signOut();
   document.getElementById('app').style.display = 'none';
@@ -506,6 +554,7 @@ async function showApp(){
   updateHeaderHeight();
   updateBalanceHeight();
   updateMobileTotalBar(0);
+  updateAllCurrentDateLabels();
 }
 
 async function init(){
