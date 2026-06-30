@@ -80,6 +80,32 @@
   .range-row button { width: auto; }
   .range-row label { font-size: 13px; color: var(--text-secondary); }
   .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  @media (max-width: 700px) {
+    .page { padding: 0 0 24px; }
+    .range-row { padding: 0 16px; }
+    .balance-row { margin-left: 16px; margin-right: 16px; }
+    .columns {
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scroll-padding: 0 16px;
+      -webkit-overflow-scrolling: touch;
+      gap: 0;
+      padding: 0 0 4px;
+    }
+    .columns > div {
+      flex: 0 0 100%;
+      scroll-snap-align: start;
+      scroll-snap-stop: always;
+      padding: 0 16px;
+      box-sizing: border-box;
+    }
+    .swipe-hint { display: flex; justify-content: center; gap: 6px; margin: 8px 0 16px; }
+    .swipe-hint span { width: 6px; height: 6px; border-radius: 50%; background: var(--border-strong); }
+    .swipe-hint span.active { background: var(--navy); }
+  }
+  .swipe-hint { display: none; }
 </style>
 </head>
 <body>
@@ -129,11 +155,10 @@
             <td><input type="date" id="in-date" /></td>
             <td><input type="text" id="in-customer" placeholder="Customer" /></td>
             <td><input type="text" id="in-bill" placeholder="Bill #" /></td>
-            <td><button id="in-add">Add</button></td>
+            <td><input type="number" id="in-amount" placeholder="Amount" /></td>
           </tr>
           <tr>
-            <td colspan="3"></td>
-            <td><input type="number" id="in-amount" placeholder="Amount" /></td>
+            <td colspan="4"><button id="in-add" style="width:100%;">Add</button></td>
           </tr>
         </tfoot>
       </table>
@@ -157,11 +182,10 @@
             <td><input type="date" id="out-date" /></td>
             <td><input type="text" id="out-supplier" placeholder="Supplier" /></td>
             <td><input type="text" id="out-bill" placeholder="Bill #" /></td>
-            <td><button id="out-add">Add</button></td>
+            <td><input type="number" id="out-amount" placeholder="Amount" /></td>
           </tr>
           <tr>
-            <td colspan="3"></td>
-            <td><input type="number" id="out-amount" placeholder="Amount" /></td>
+            <td colspan="4"><button id="out-add" style="width:100%;">Add</button></td>
           </tr>
         </tfoot>
       </table>
@@ -170,6 +194,8 @@
       </div>
     </div>
   </div>
+
+  <div class="swipe-hint" id="swipe-hint"><span class="dot active"></span><span class="dot"></span></div>
 
   <div class="balance-row">
     <span>Balance</span>
@@ -388,6 +414,15 @@ async function init(){
 }
 
 init();
+
+const columnsEl = document.querySelector('.columns');
+const dots = document.querySelectorAll('#swipe-hint .dot');
+if (columnsEl && dots.length) {
+  columnsEl.addEventListener('scroll', () => {
+    const idx = Math.round(columnsEl.scrollLeft / columnsEl.clientWidth);
+    dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+  }, { passive: true });
+}
 </script>
 </body>
 </html>
