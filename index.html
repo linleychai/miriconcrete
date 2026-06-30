@@ -356,7 +356,7 @@ async function saveEdit(id, editTr){
 }
 
 async function loadRows(){
-  const { data, error } = await sb.from('transactions').select('*').order('date', { ascending: false });
+  const { data, error } = await sb.from('transactions').select('*').order('date', { ascending: true }).order('created_at', { ascending: true });
   if (error) { console.error(error); return; }
   rows = data;
   render();
