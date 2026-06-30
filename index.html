@@ -46,7 +46,7 @@
   tr.filler-row td { border-bottom: none; }
   tr.filler-row:hover { background: none; }
   tr.filler-row { cursor: default; }
-  td.sticky-date { position: sticky; top: 0; background: var(--bg); z-index: 2; }
+  td.sticky-date { position: sticky; top: var(--header-h, 0px); background: var(--bg); z-index: 2; }
   td.blank-date { color: var(--text-muted); }
   tfoot td { border-bottom: none; padding-top: 10px; }
   input, button { font-size: 13px; padding: 7px 8px; border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text); background: var(--surface); box-sizing: border-box; height: 36px; width: 100%; }
@@ -73,7 +73,16 @@
   #app { display: none; }
   .error { color: var(--text-danger); font-size: 13px; }
   .total-row { display: flex; justify-content: space-between; margin-top: 12px; padding: 10px 12px; background: var(--row-hover); border-radius: 6px; font-weight: 600; }
-  .balance-row { margin-top: 16px; padding: 16px; background: var(--navy); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; color: #fff; }
+  .sticky-header { position: sticky; top: 0; z-index: 20; background: var(--bg); }
+  .range-row { background: var(--bg); padding: 16px 24px; margin-bottom: 0; border-bottom: 1px solid var(--border); }
+  .balance-row {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    margin: 0; border-radius: 0; padding: 16px 24px;
+    max-width: 900px; margin-left: auto; margin-right: auto;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.15);
+    background: var(--navy); display: flex; justify-content: space-between; align-items: center; color: #fff;
+  }
+  .balance-spacer { height: 76px; }
   .balance-row span:first-child { font-weight: 600; font-size: 16px; }
   #balance { font-weight: 700; font-size: 22px; color: var(--highlight); }
   #theme-toggle { width: 36px; height: 36px; padding: 0; background: transparent; color: #fff; border-color: rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; }
@@ -89,8 +98,7 @@
 
   @media (max-width: 700px) {
     .page { padding: 0 0 24px; }
-    .range-row { padding: 0 16px; }
-    .balance-row { margin-left: 16px; margin-right: 16px; }
+    .range-row { padding: 12px 16px; }
     .columns {
       display: flex;
       overflow-x: auto;
@@ -126,6 +134,7 @@
 </div>
 
 <div id="app">
+  <div class="sticky-header">
   <div class="topbar">
     <div>
       <h3>Miri Concrete</h3>
@@ -137,7 +146,6 @@
     </div>
   </div>
 
-  <div class="page">
   <div class="range-row">
     <label>From</label>
     <input type="date" id="range-start" />
@@ -145,7 +153,9 @@
     <input type="date" id="range-end" />
     <button id="reset-range">Last 7 days</button>
   </div>
+  </div>
 
+  <div class="page">
   <div class="total-row" id="opening-balance-row" style="margin-bottom:16px;">
     <span>Opening balance</span><span id="opening-balance-display">0.00</span>
   </div>
@@ -206,6 +216,7 @@
 
   <div class="swipe-hint" id="swipe-hint"><span class="dot active"></span><span class="dot"></span></div>
 
+  <div class="balance-spacer"></div>
   <div class="balance-row">
     <span>Ending balance</span>
     <span id="balance">0.00</span>
@@ -449,6 +460,12 @@ function setTheme(theme){
   setTheme(saved || (prefersDark ? 'dark' : 'light'));
 })();
 
+function updateHeaderHeight(){
+  const header = document.querySelector('.sticky-header');
+  if (header) document.documentElement.style.setProperty('--header-h', header.offsetHeight + 'px');
+}
+window.addEventListener('resize', updateHeaderHeight);
+
 document.getElementById('logout-btn').onclick = async () => {
   await sb.auth.signOut();
   document.getElementById('app').style.display = 'none';
@@ -472,6 +489,7 @@ async function showApp(){
   document.getElementById('app').style.display = 'block';
   setDefaultRange();
   await loadRows();
+  updateHeaderHeight();
 }
 
 async function init(){
