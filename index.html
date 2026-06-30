@@ -24,6 +24,13 @@
   button:hover { background: #f5f5f5; }
   h3 { margin: 0 0 8px; }
   .del-btn { border: none; background: none; cursor: pointer; color: var(--text-muted); padding: 0; }
+  tr.row { cursor: pointer; }
+  tr.row:active { background: #f5f5f5; }
+  tr.editing td { padding: 8px 4px; }
+  tr.editing input { width: 100%; box-sizing: border-box; }
+  .edit-actions { display: flex; gap: 6px; margin-top: 6px; }
+  .edit-actions button { flex: 1; padding: 8px; }
+  .edit-actions .delete-btn { color: var(--text-danger); border-color: var(--text-danger); }
   #login-screen { max-width: 320px; margin: 80px auto; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
   #login-screen input, #login-screen button { width: 100%; }
   #app { display: none; }
@@ -58,13 +65,14 @@
       <h3>Received</h3>
       <table>
         <thead>
-          <tr><th>Date</th><th>Customer</th><th style="text-align:right;">Amount in</th><th></th></tr>
+          <tr><th>Date</th><th>Customer</th><th>Bill #</th><th style="text-align:right;">Amount in</th></tr>
         </thead>
         <tbody id="in-body"></tbody>
       </table>
       <div style="display:flex; gap:6px; margin-top:8px;">
         <input type="date" id="in-date" style="flex:1;" />
         <input type="text" id="in-customer" placeholder="Customer" style="flex:1;" />
+        <input type="text" id="in-bill" placeholder="Bill #" style="width:90px;" />
         <input type="number" id="in-amount" placeholder="Amount" style="width:90px;" />
         <button id="in-add">+</button>
       </div>
@@ -77,13 +85,14 @@
       <h3>Paid</h3>
       <table>
         <thead>
-          <tr><th>Date</th><th>Supplier</th><th style="text-align:right;">Amount out</th><th></th></tr>
+          <tr><th>Date</th><th>Supplier</th><th>Bill #</th><th style="text-align:right;">Amount out</th></tr>
         </thead>
         <tbody id="out-body"></tbody>
       </table>
       <div style="display:flex; gap:6px; margin-top:8px;">
         <input type="date" id="out-date" style="flex:1;" />
         <input type="text" id="out-supplier" placeholder="Supplier" style="flex:1;" />
+        <input type="text" id="out-bill" placeholder="Bill #" style="width:90px;" />
         <input type="number" id="out-amount" placeholder="Amount" style="width:90px;" />
         <button id="out-add">+</button>
       </div>
@@ -128,6 +137,33 @@ function inRange(dateStr){
   return true;
 }
 
+let editingId = null;
+
+function rowHTML(row){
+  if (row.id === editingId) {
+    return `<tr class="editing" data-id="${row.id}">
+      <td colspan="4">
+        <div style="display:flex; gap:6px; margin-bottom:4px;">
+          <input type="date" class="edit-date" value="${row.date||''}" style="flex:1;" />
+          <input type="text" class="edit-party" value="${row.party||''}" placeholder="${row.type==='in'?'Customer':'Supplier'}" style="flex:1;" />
+        </div>
+        <div style="display:flex; gap:6px; margin-bottom:4px;">
+          <input type="text" class="edit-bill" value="${row.bill_number||''}" placeholder="Bill #" style="flex:1;" />
+          <input type="number" class="edit-amount" value="${row.amount||''}" placeholder="Amount" style="width:90px;" />
+        </div>
+        <div class="edit-actions">
+          <button class="save-btn">Save</button>
+          <button class="cancel-btn">Cancel</button>
+          <button class="delete-btn">Delete</button>
+        </div>
+      </td>
+    </tr>`;
+  }
+  return `<tr class="row" data-id="${row.id}">
+    <td>${row.date||''}</td><td>${row.party||''}</td><td>${row.bill_number||''}</td><td style="text-align:right;">${fmt(row.amount)}</td>
+  </tr>`;
+}
+
 function render(){
   const inBody = document.getElementById('in-body');
   const outBody = document.getElementById('out-body');
@@ -138,17 +174,13 @@ function render(){
   rows.filter(r => r.type === 'in').forEach(row => {
     if (!inRange(row.date)) return;
     totalIn += Number(row.amount) || 0;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${row.date||''}</td><td>${row.party||''}</td><td style="text-align:right;">${fmt(row.amount)}</td><td><button class="del-btn" data-id="${row.id}">×</button></td>`;
-    inBody.appendChild(tr);
+    inBody.insertAdjacentHTML('beforeend', rowHTML(row));
   });
 
   rows.filter(r => r.type === 'out').forEach(row => {
     if (!inRange(row.date)) return;
     totalOut += Number(row.amount) || 0;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${row.date||''}</td><td>${row.party||''}</td><td style="text-align:right;">${fmt(row.amount)}</td><td><button class="del-btn" data-id="${row.id}">×</button></td>`;
-    outBody.appendChild(tr);
+    outBody.insertAdjacentHTML('beforeend', rowHTML(row));
   });
 
   document.getElementById('in-total').textContent = fmt(totalIn);
@@ -158,7 +190,30 @@ function render(){
   balEl.textContent = (bal < 0 ? '-' : '') + fmt(Math.abs(bal));
   balEl.style.color = bal < 0 ? 'var(--text-danger)' : 'var(--text-success)';
 
-  document.querySelectorAll('.del-btn').forEach(b => b.onclick = () => deleteRow(b.dataset.id));
+  document.querySelectorAll('tr.row').forEach(tr => {
+    tr.onclick = () => { editingId = tr.dataset.id; render(); };
+  });
+
+  const editTr = document.querySelector('tr.editing');
+  if (editTr) {
+    editTr.querySelector('.cancel-btn').onclick = () => { editingId = null; render(); };
+    editTr.querySelector('.save-btn').onclick = () => saveEdit(editTr.dataset.id, editTr);
+    editTr.querySelector('.delete-btn').onclick = () => {
+      if (confirm('Delete this entry?')) deleteRow(editTr.dataset.id);
+    };
+  }
+}
+
+async function saveEdit(id, editTr){
+  const date = editTr.querySelector('.edit-date').value;
+  const party = editTr.querySelector('.edit-party').value;
+  const bill_number = editTr.querySelector('.edit-bill').value;
+  const amount = editTr.querySelector('.edit-amount').value;
+  if (!date || !amount) return;
+  const { error } = await sb.from('transactions').update({ date, party, bill_number, amount }).eq('id', id);
+  if (error) { console.error(error); alert('Failed to save: ' + error.message); return; }
+  editingId = null;
+  await loadRows();
 }
 
 async function loadRows(){
@@ -168,10 +223,10 @@ async function loadRows(){
   render();
 }
 
-async function addRow(type, date, party, amount){
+async function addRow(type, date, party, bill_number, amount){
   const { data: { user } } = await sb.auth.getUser();
   const { error } = await sb.from('transactions').insert({
-    user_id: user.id, type, date, party, amount
+    user_id: user.id, type, date, party, bill_number, amount
   });
   if (error) { console.error(error); alert('Failed to save: ' + error.message); return; }
   await loadRows();
@@ -190,20 +245,24 @@ document.getElementById('reset-range').onclick = () => { setDefaultRange(); rend
 document.getElementById('in-add').onclick = () => {
   const date = document.getElementById('in-date').value;
   const customer = document.getElementById('in-customer').value;
+  const bill = document.getElementById('in-bill').value;
   const amount = document.getElementById('in-amount').value;
   if (!amount || !date) return;
-  addRow('in', date, customer, amount);
+  addRow('in', date, customer, bill, amount);
   document.getElementById('in-customer').value = '';
+  document.getElementById('in-bill').value = '';
   document.getElementById('in-amount').value = '';
 };
 
 document.getElementById('out-add').onclick = () => {
   const date = document.getElementById('out-date').value;
   const supplier = document.getElementById('out-supplier').value;
+  const bill = document.getElementById('out-bill').value;
   const amount = document.getElementById('out-amount').value;
   if (!amount || !date) return;
-  addRow('out', date, supplier, amount);
+  addRow('out', date, supplier, bill, amount);
   document.getElementById('out-supplier').value = '';
+  document.getElementById('out-bill').value = '';
   document.getElementById('out-amount').value = '';
 };
 
