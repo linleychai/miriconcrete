@@ -347,7 +347,8 @@ function render(){
     };
   }
 
-  requestAnimationFrame(drawDividers);
+  requestAnimationFrame(() => requestAnimationFrame(drawDividers));
+  setTimeout(drawDividers, 80);
 }
 
 function drawDividers(){
@@ -381,6 +382,7 @@ function drawDividers(){
 }
 
 window.addEventListener('resize', () => requestAnimationFrame(drawDividers));
+window.addEventListener('load', drawDividers);
 
 async function saveEdit(id, editTr){
   const date = editTr.querySelector('.edit-date').value;
